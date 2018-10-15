@@ -14,12 +14,17 @@ mkYesod "DiceRoller" [parseRoutes|
 
 instance Yesod DiceRoller
 
+getRandom :: RandomGen (stdGen) => stdGen -> (stdGen, Int)
+getRandom gen = (gen',value)
+    where
+    (value,gen') = randomR (1,6) gen
+
 getHomeR :: Handler Html
 getHomeR = do
-    r <- fmap genRef getYesod
-    value <- liftIO $ atomicModifyIORef r $ \g -> let (v,g') = randomR (1::Int, 6) g in (g',v)
+    ref <- fmap genRef getYesod
+    dice <- liftIO $ atomicModifyIORef ref getRandom
     defaultLayout [whamlet|
-        <p>Dice Roller:#{show value}
+        <p>Dice Roller:#{show dice}
     |]
 
 main :: IO ()
