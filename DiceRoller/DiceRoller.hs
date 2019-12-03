@@ -2,34 +2,33 @@
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE ViewPatterns      #-}
 import Yesod
 import System.Random
-import Data.IORef
 
-data DiceRoller = DiceRoller { genRef :: IORef StdGen }
+data DiceRoller = DiceRoller
 
 mkYesod "DiceRoller" [parseRoutes|
-/ HomeR GET
+/#Integer/ HomeR GET
 |]
 
 instance Yesod DiceRoller
 
-getRandom :: RandomGen (stdGen) => stdGen -> (stdGen, Int)
-getRandom gen = (gen',value)
-    where
-    (value,gen') = randomR (1,6) gen
+getStdRandoms :: Integer -> IO [Integer]
+getStdRandoms 0 = return []
+getStdRandoms n = do
+    r <- getStdRandom $ randomR (1::Integer,6)
+    rs <- getStdRandoms (n - 1)
+    return $ r : rs
 
-getHomeR :: Handler Html
-getHomeR = do
-    ref <- fmap genRef getYesod
-    dice <- liftIO $ atomicModifyIORef ref getRandom
+getHomeR :: Integer -> Handler Html
+getHomeR n = do
+    dice <- liftIO $ getStdRandoms n
     defaultLayout [whamlet|
         <p>Dice Roller:#{show dice}
     |]
 
 main :: IO ()
 main = do
-    g <- newStdGen
-    r <- newIORef g
-    warp 3000 DiceRoller { genRef = r }
+    warp 3000 DiceRoller
 
